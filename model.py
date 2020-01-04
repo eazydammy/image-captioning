@@ -28,7 +28,7 @@ class DecoderRNN(nn.Module):
         # define embedding
         self.embedding = nn.Embedding(vocab_size, embed_size)
         
-        # define LSTM 
+        # define LSTM(s)
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
         
         # define fully-connected layer for model output
@@ -62,7 +62,7 @@ class DecoderRNN(nn.Module):
         # concat features with captions embed
         embeddings = torch.cat((features.unsqueeze(1), captions_embed), 1)  
         
-        # pass embeddings through LSTMs
+        # pass embeddings through LSTM(s)
         lstm_outputs, _ = self.lstm(embeddings)
         
         # pass LSTM outputs through output FC layer
@@ -72,4 +72,23 @@ class DecoderRNN(nn.Module):
 
     def sample(self, inputs, states=None, max_len=20):
         " accepts pre-processed image tensor (inputs) and returns predicted sentence (list of tensor ids of length max_len) "
-        pass
+        
+        output = []
+        for i in range(max_len):
+            # pass input image tensor through LSTM(s)
+            lstm_outputs, states = self.lstm(inputs, states)
+            lstm_outputs = self.fc(lstm_outputs.squeeze(1))
+            
+            # store id of predicted word
+            _, predict_id = lstm_outputs.max(1) 
+            output.append(predict_id.item())
+            
+            # break if <end> tag is predicted
+            if(predict_id.item() == 1):
+                break
+                
+            # prepare inputs for next iteration
+            inputs = self.embedding(predict_id) 
+            inputs = inputs.unsqueeze(1)
+            
+        return output
